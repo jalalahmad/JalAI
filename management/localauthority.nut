@@ -90,7 +90,7 @@ function LocalAuthority::BuildStatues()
 	town_list.Valuate(AITown.HasStatue);
 	town_list.RemoveValue(1);
 	GetActiveTowns(town_list);
-	town_list.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_DESCENDING);
+	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 
 	foreach (town, index in town_list)
 	{
@@ -110,7 +110,7 @@ function LocalAuthority::SecureTransportationsRights()
 	town_list.Valuate(AITown.GetExclusiveRightsCompany);
 	town_list.KeepValue(AICompany.COMPANY_INVALID);
 	GetActiveTowns(town_list);
-	town_list.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_DESCENDING);
+	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
 
 	foreach (town, index in town_list)
 	{
@@ -133,7 +133,7 @@ function LocalAuthority::ImproveRelations()
 	town_list.KeepBelowValue(AITown.TOWN_RATING_GOOD);
 	town_list.RemoveValue(AITown.TOWN_RATING_NONE);
 	town_list.RemoveValue(AITown.TOWN_RATING_INVALID);
-	town_list.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_ASCENDING);
+	town_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
 
 	if (town_list.Count() > 0)
 	{
@@ -161,7 +161,7 @@ function LocalAuthority::ImproveRelations()
 		list.KeepValue(town);
 		list.Valuate(AITile.IsBuildable);
 		list.KeepAboveValue(0);
-
+		
 		// Start planting trees until we restored our reputation.
 		list.Valuate(AIBase.RandItem);
 		local exec = AIExecMode();
@@ -184,17 +184,17 @@ function LocalAuthority::BuildHQ(town)
 		return;
 	}
 	Log.logInfo("Build HQ!");
-
+	
 	// Find empty 2x2 square as close to town centre as possible
 	local maxRange = Sqrt(AITown.GetPopulation(town)/100) + 5; //TODO check value correctness
 	local HQArea = AITileList();
-
+	
 	HQArea.AddRectangle(AITown.GetLocation(town) - AIMap.GetTileIndex(maxRange, maxRange), AITown.GetLocation(town) + AIMap.GetTileIndex(maxRange, maxRange));
 	HQArea.Valuate(AITile.IsBuildableRectangle, 2, 2);
 	HQArea.KeepValue(1);
 	HQArea.Valuate(AIMap.DistanceManhattan, AITown.GetLocation(town));
 	HQArea.Sort(AIList.SORT_BY_VALUE, true);
-
+	
 	foreach (tile, value in HQArea) {
 		if (AICompany.BuildCompanyHQ(tile)) {
 			return;
