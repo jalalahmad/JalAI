@@ -327,7 +327,11 @@ function TownManager::GetDepot(station_manager)
 	if (!this._depot_tiles.rawin(AIRoad.GetCurrentRoadType())) {
 		local stationtiles = AITileList_StationType(station_manager.GetStationID(), AIStation.STATION_BUS_STOP);
 		stationtiles.Valuate(AIRoad.GetRoadStationFrontTile);
-		this._depot_tiles.rawset(AIRoad.GetCurrentRoadType(), AdmiralAI.BuildDepot(stationtiles.GetValue(stationtiles.Begin())));
+		if (stationtiles.Count() > 0) {
+			this._depot_tiles.rawset(AIRoad.GetCurrentRoadType(), RouteBuilder.BuildDepot(stationtiles.GetValue(stationtiles.Begin())));
+		} else {
+			return null;
+		}
 	}
 	return this._depot_tiles.rawget(AIRoad.GetCurrentRoadType());
 }
