@@ -448,7 +448,11 @@ function TruckLineManager::_GetStationNearTown(town, dir_tile, cargo)
 			if (AITile.GetMaxHeight(tile + offset) > AITile.GetMaxHeight(tile)) {
 				if (!AITile.LowerTile(tile + offset, AITile.GetSlope(tile + offset))) continue;
 			} else if (AITile.GetMaxHeight(tile + offset) < AITile.GetMaxHeight(tile) || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) {
-				if (!AITile.RaiseTile(tile + offset, AITile.GetComplementSlope(AITile.GetSlope(tile + offset)))) continue;
+				local target_h = AITile.GetMaxHeight(tile);
+				while (AITile.GetMaxHeight(tile + offset) < target_h || (AITile.GetMaxHeight(tile + offset) == target_h && AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT)) {
+					if (!AITile.RaiseTile(tile + offset, AITile.GetComplementSlope(AITile.GetSlope(tile + offset)))) break;
+				}
+				if (AITile.GetMaxHeight(tile + offset) != target_h || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) continue;
 			}
 			/* Build both the road and the station. If building fails, try another location.*/
 			if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
@@ -526,8 +530,11 @@ function TruckLineManager::_GetStationNearIndustry(ind, dir_tile, producing, car
 			if (AITile.GetMaxHeight(tile + offset) > AITile.GetMaxHeight(tile)) {
 				if (!AITile.LowerTile(tile + offset, AITile.GetSlope(tile + offset))) continue;
 			} else if (AITile.GetMaxHeight(tile + offset) < AITile.GetMaxHeight(tile) || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) {
-				if (!AITile.RaiseTile(tile + offset, AITile.GetComplementSlope(AITile.GetSlope(tile + offset)))) continue;
-				/* TODO: this is not always enough, ie if tile+offset is lower and non-flat. */
+				local target_h = AITile.GetMaxHeight(tile);
+				while (AITile.GetMaxHeight(tile + offset) < target_h || (AITile.GetMaxHeight(tile + offset) == target_h && AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT)) {
+					if (!AITile.RaiseTile(tile + offset, AITile.GetComplementSlope(AITile.GetSlope(tile + offset)))) break;
+				}
+				if (AITile.GetMaxHeight(tile + offset) != target_h || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) continue;
 			}
 			if (AITile.GetSlope(tile) != AITile.SLOPE_FLAT) AITile.RaiseTile(tile, AITile.GetComplementSlope(AITile.GetSlope(tile)));
 			/* Build both the road and the station. If building fails, try another location.*/
