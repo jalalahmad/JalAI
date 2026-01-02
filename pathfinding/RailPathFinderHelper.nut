@@ -1,6 +1,7 @@
 class RailPathFinderHelper extends PathFinderHelper {
 
 	static NEAR_STATION_DISTANCE = 15;
+	static STATION_LENGTH = 3;
 	costForRail 	= 100;       // Cost for utilizing an existing road, bridge, or tunnel.
 	costForNewRail	= 1000;       // Cost for building a new road.
 	costForTurn 	= 300;       // Additional cost if the road makes a turn.
@@ -182,7 +183,7 @@ function RailPathFinderHelper::ProcessStartPositions(heap, startList, checkStart
 	}
 	
 	// TODO: Make this a global value...
-	local stationLength = 3;
+	local stationLength = STATION_LENGTH;
 	
 	// Determine middle point.
 	local x = 0;
@@ -214,10 +215,10 @@ function RailPathFinderHelper::ProcessStartPositions(heap, startList, checkStart
 				continue;
 			
 			if (offsets[j] == 1 &&
-				!AITile.IsBuildableRectangle(i - offsets[j] * 3, stationLength + 7, 2))
+				!AITile.IsBuildableRectangle(i - offsets[j] * STATION_LENGTH, 2 * STATION_LENGTH + 4, 2))
 				continue;
 			else if (offsets[j] == mapSizeX &&
-				!AITile.IsBuildableRectangle(i - offsets[j] * 3, 2, stationLength + 7))
+				!AITile.IsBuildableRectangle(i - offsets[j] * STATION_LENGTH, 2, 2 * STATION_LENGTH + 4))
 				continue;
 
 			// Only add the tile furthest away from the industry to the open list.
@@ -279,7 +280,7 @@ function RailPathFinderHelper::ProcessEndPositions(endList, checkEndPositions) {
 
 	local newEndLocations = AITileList();
 	local mapSizeX = AIMap.GetMapSizeX();	
-	local stationLength = 3;
+	local stationLength = STATION_LENGTH;
 
 	foreach (i, value in endList) {
 		
@@ -296,11 +297,11 @@ function RailPathFinderHelper::ProcessEndPositions(endList, checkEndPositions) {
 
 
 			if (offsets[j] == 1) {
-				stationSizeX = stationLength + 6;
+				stationSizeX = 3 * STATION_LENGTH;
 				stationSizeY = 2;
 			} else if (offsets[j] == mapSizeX) {
 				stationSizeX = 2;
-				stationSizeY = stationLength + 6;
+				stationSizeY = 3 * STATION_LENGTH;
 			}
 
 			if (AITile.IsBuildableRectangle(i - offsets[j] * stationLength, stationSizeX, stationSizeY)) 
@@ -370,12 +371,12 @@ function RailPathFinderHelper::CheckGoalState(at, end, checkEndPositions, closed
 			return false;
 
 		local mapSizeX = AIMap.GetMapSizeX();
-		local aroundStationTile = at.tile + (at.direction == -1 || at.direction == -AIMap.GetMapSizeX() ? 5 * at.direction : -3 * at.direction); 
-		local stationTile = at.tile + (at.direction == -1 || at.direction == -mapSizeX ? 2 * at.direction : 0); 
+		local aroundStationTile = at.tile + (at.direction == -1 || at.direction == -AIMap.GetMapSizeX() ? (2 * STATION_LENGTH - 1) * at.direction : -STATION_LENGTH * at.direction);
+		local stationTile = at.tile + (at.direction == -1 || at.direction == -mapSizeX ? (STATION_LENGTH - 1) * at.direction : 0);
 
-		if (!AIRail.BuildRailStation(stationTile, direction, 2, 3, AIStation.STATION_NEW) ||
-			direction == AIRail.RAILTRACK_NE_SW && !AITile.IsBuildableRectangle(aroundStationTile, 9, 2) ||
-			direction == AIRail.RAILTRACK_NW_SE && !AITile.IsBuildableRectangle(aroundStationTile, 2, 9) ||
+		if (!AIRail.BuildRailStation(stationTile, direction, 2, STATION_LENGTH, AIStation.STATION_NEW) ||
+			direction == AIRail.RAILTRACK_NE_SW && !AITile.IsBuildableRectangle(aroundStationTile, 3 * STATION_LENGTH, 2) ||
+			direction == AIRail.RAILTRACK_NW_SE && !AITile.IsBuildableRectangle(aroundStationTile, 2, 3 * STATION_LENGTH) ||
 			at.parentTile.type != Tile.ROAD)
 			return false;
 	}
