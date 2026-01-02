@@ -556,8 +556,10 @@ function TruckLineManager::_BuildDepot(station_manager)
 	/* Create a list of all road tiles directly connected with the station tiles. */
 	local stationtiles = AITileList_StationType(station_manager.GetStationID(), AIStation.STATION_TRUCK_STOP);
 	stationtiles.Valuate(AIRoad.GetRoadStationFrontTile);
-	/// @todo What if BuildDepot fails?
-	return AdmiralAI.BuildDepot(stationtiles.GetValue(stationtiles.Begin()));
+
+	if (stationtiles.Count() == 0) return null;
+
+	return RouteBuilder.BuildDepot(stationtiles.GetValue(stationtiles.Begin()));
 }
 
 function TruckLineManager::_NewLineExistingRoadGenerator(num_routes_to_check)

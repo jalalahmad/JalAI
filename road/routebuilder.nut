@@ -52,7 +52,38 @@ class RouteBuilder
 	 * @param tile The road tile to start.
 	 */
 	static function DeleteDeadEnd(tile);
+
+	/**
+	 * Build a depot connected to the given tile.
+	 * @param tile The tile the depot should be connected to.
+	 * @return The tile of the depot or null if it failed.
+	 */
+	static function BuildDepot(tile);
 };
+
+function RouteBuilder::BuildDepot(tile)
+{
+	local offsets = [AIMap.GetTileIndex(0, 1), -AIMap.GetTileIndex(0, 1),
+	                 AIMap.GetTileIndex(1, 0), -AIMap.GetTileIndex(1, 0)];
+
+	foreach (offset in offsets) {
+		local depot_tile = tile + offset;
+		if (!AITile.IsBuildable(depot_tile)) continue;
+
+		if (AITile.GetSlope(depot_tile) != AITile.SLOPE_FLAT) {
+			if (!AITile.LowerTile(depot_tile, AITile.GetSlope(depot_tile))) {
+				if (!AITile.RaiseTile(depot_tile, AITile.GetComplementSlope(AITile.GetSlope(depot_tile)))) {
+					continue;
+				}
+			}
+		}
+
+		if (AIRoad.BuildRoadDepot(depot_tile, tile)) {
+			return depot_tile;
+		}
+	}
+	return null;
+}
 
 function RouteBuilder::GetRoadStationFrontTile(tile)
 {
