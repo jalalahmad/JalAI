@@ -41,37 +41,23 @@ class RailRouteBuilder
 
 function RailRouteBuilder::DetectPlatformLength(station)
 {
-	/* TODO: make this function work when AIStation.GetLocation doesn't
-	 * return a rail tile or returns a rail tile in the middle of the
-	 * platform. */
 	local tile = AIStation.GetLocation(station);
 	local length = 0;
 	if (AIRail.GetRailTracks(tile) == AIRail.RAILTRACK_NW_SE) {
-		local tile_before = tile + AIMap.GetTileIndex(0, -1);
+		while (AIStation.GetStationID(tile + AIMap.GetTileIndex(0, -1)) == station && AIRail.GetRailTracks(tile + AIMap.GetTileIndex(0, -1)) == AIRail.RAILTRACK_NW_SE) {
+			tile += AIMap.GetTileIndex(0, -1);
+		}
 		while (AIStation.GetStationID(tile) == station && AIRail.GetRailTracks(tile) == AIRail.RAILTRACK_NW_SE) {
 			length++;
 			tile += AIMap.GetTileIndex(0, 1);
 		}
-		/* TODO: Remove this ugly hack. */
-		length -= 2;
-		if (((!AIRail.IsRailStationTile(tile_before)) && AICompany.IsMine(AITile.GetOwner(tile_before)) && AIRail.IsRailTile(tile_before) &&
-				(AIRail.GetRailTracks(tile_before) & AIRail.RAILTRACK_NW_SE) != 0) ||
-				((!AIRail.IsRailStationTile(tile)) && AICompany.IsMine(AITile.GetOwner(tile)) && AIRail.IsRailTile(tile) &&
-				(AIRail.GetRailTracks(tile) & AIRail.RAILTRACK_NW_SE) != 0)) {
-			length += 2;
-		}
 	} else {
-		local tile_before = tile + AIMap.GetTileIndex(-1, 0);
+		while (AIStation.GetStationID(tile + AIMap.GetTileIndex(-1, 0)) == station && AIRail.GetRailTracks(tile + AIMap.GetTileIndex(-1, 0)) == AIRail.RAILTRACK_NE_SW) {
+			tile += AIMap.GetTileIndex(-1, 0);
+		}
 		while (AIStation.GetStationID(tile) == station && AIRail.GetRailTracks(tile) == AIRail.RAILTRACK_NE_SW) {
 			length++;
 			tile += AIMap.GetTileIndex(1, 0);
-		}
-		length -= 2;
-		if ((!AIRail.IsRailStationTile(tile_before) && AICompany.IsMine(AITile.GetOwner(tile_before)) && AIRail.IsRailTile(tile_before) &&
-				(AIRail.GetRailTracks(tile_before) & AIRail.RAILTRACK_NE_SW) != 0) ||
-				(!AIRail.IsRailStationTile(tile) && AICompany.IsMine(AITile.GetOwner(tile)) && AIRail.IsRailTile(tile) &&
-				(AIRail.GetRailTracks(tile) & AIRail.RAILTRACK_NE_SW) != 0)) {
-			length += 2;
 		}
 	}
 	return length;
