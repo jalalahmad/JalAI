@@ -225,8 +225,9 @@ class Connection {
 			local holdingEngineID = null;
 			if (AIEngine.GetVehicleType(transportEngineID) == AIVehicle.VT_RAIL) {
 				
-				// TODO: Check if there is a restriction on the rail types we can use.
 				local bestRailType = TrainConnectionAdvisor.GetBestRailType(engineID);
+				if (bestRailType == AIRail.RAILTYPE_INVALID)
+					continue;
 				
 				if (!AIEngine.CanPullCargo(transportEngineID, cargoID))
 					continue;
