@@ -67,6 +67,15 @@ class TrainManager
 	function _GetStationNearIndustry(ind, producing, cargo);
 
 	/**
+	 * Try to clear and terraform an area to make it flat for a station.
+	 * @param tile The top tile of the area.
+	 * @param width The width of the area.
+	 * @param height The height of the area.
+	 * @return True if successful, false otherwise.
+	 */
+	function _ClearAndTerraform(tile, width, height);
+
+	/**
 	 * Initialize the array with industries we don't service yet. This
 	 * should only be called once before any other function is called.
 	 */
@@ -524,11 +533,16 @@ function TrainManager::_GetStationNearIndustry(ind, producing, cargo, other_ind)
 		tile_list2.KeepAboveValue(7);
 	}
 
+	local backup_tile_list = AITileList();
+	backup_tile_list.AddList(tile_list);
+	local backup_tile_list2 = AITileList();
+	backup_tile_list2.AddList(tile_list2);
+
 	{
 		local test = AITestMode();
 		Utils_Valuator.Valuate(tile_list, Utils_Tile.CanBuildStation, 2, platform_length + 2);
 		tile_list.KeepAboveValue(0);
-		Utils_Valuator.Valuate(tile_list, Utils_Tile.CanBuildStation, platform_length + 2, 2);
+		Utils_Valuator.Valuate(tile_list2, Utils_Tile.CanBuildStation, platform_length + 2, 2);
 		tile_list2.KeepAboveValue(0);
 	}
 
@@ -595,8 +609,133 @@ function TrainManager::_GetStationNearIndustry(ind, producing, cargo, other_ind)
 		}
 	}
 
-	/* @TODO: if building a stations failed, try if we can clear / terraform some tiles for the station. */
+	/* If building a station failed, try if we can clear / terraform some tiles for the station. */
+	Utils_Valuator.Valuate(backup_tile_list, this.TileValuator1, AIIndustry.GetLocation(other_ind), 4, platform_length);
+	backup_tile_list.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_ASCENDING);
+	Utils_Valuator.Valuate(backup_tile_list2, this.TileValuator2, AIIndustry.GetLocation(other_ind), 4, platform_length);
+	backup_tile_list2.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_ASCENDING);
+
+	lists = [];
+	if (abs(AIMap.GetTileX(loc1) - AIMap.GetTileX(loc2)) > abs(AIMap.GetTileY(loc1) - AIMap.GetTileY(loc2))) {
+		lists.append([backup_tile_list2, AIRail.RAILTRACK_NE_SW, this.HasBuildingRoom2]);
+		lists.append([backup_tile_list, AIRail.RAILTRACK_NW_SE, this.HasBuildingRoom1]);
+	} else {
+		lists.append([backup_tile_list, AIRail.RAILTRACK_NW_SE, this.HasBuildingRoom1]);
+		lists.append([backup_tile_list2, AIRail.RAILTRACK_NE_SW, this.HasBuildingRoom2]);
+	}
+
+	foreach (list_dir in lists) {
+		local tile_list = list_dir[0];
+		local trackdir = list_dir[1];
+		local func = list_dir[2];
+		foreach (tile, dummy in tile_list) {
+			if (!func(tile, platform_length)) continue;
+
+			local width = trackdir == AIRail.RAILTRACK_NW_SE ? 2 : platform_length + 2;
+			local height = trackdir == AIRail.RAILTRACK_NW_SE ? platform_length + 2 : 2;
+
+			local build_ok = false;
+			{
+				local test = AITestMode();
+				if (this._ClearAndTerraform(tile, width, height)) {
+					if (AIRail.BuildNewGRFRailStation(tile, trackdir, 2, platform_length + 2, AIStation.STATION_NEW, cargo, ind_types[0], ind_types[1], distance, producing)) {
+						build_ok = true;
+					}
+				}
+			}
+
+			if (build_ok) {
+				if (!this._ClearAndTerraform(tile, width, height)) continue;
+
+				if (!::main_instance._town_managers[AITile.GetClosestTown(tile)].ImproveTownRating(AITown.TOWN_RATING_POOR)) return null;
+
+				if (AIRail.BuildNewGRFRailStation(tile, trackdir, 2, platform_length + 2, AIStation.STATION_NEW, cargo, ind_types[0], ind_types[1], distance, producing)) {
+					local manager = StationManager(AIStation.GetStationID(tile));
+					manager.SetCargoDrop(!producing);
+					manager._rail_type = AIRail.GetCurrentRailType();
+					manager._platform_length = platform_length;
+					if (producing) {
+						if (!this._ind_to_pickup_stations.rawin(ind)) {
+							this._ind_to_pickup_stations.rawset(ind, [[manager, false]]);
+						} else {
+							this._ind_to_pickup_stations.rawget(ind).push([manager, false]);
+						}
+					} else {
+						if (!this._ind_to_drop_stations.rawin(ind)) {
+							this._ind_to_drop_stations.rawset(ind, [[manager, false]]);
+						} else {
+							this._ind_to_drop_stations.rawget(ind).push([manager, false]);
+						}
+					}
+					return manager;
+				} else {
+					AILog.Error("Rail station building failed near " + AIIndustry.GetName(ind));
+					if (AIController.GetSetting("debug_signs")) AISign.BuildSign(tile, "RS TF Fail");
+				}
+			}
+		}
+	}
+
 	return null;
+}
+
+function TrainManager::_ClearAndTerraform(tile, width, height)
+{
+	local min_x = AIMap.GetTileX(tile);
+	local max_x = min_x + width - 1;
+	local min_y = AIMap.GetTileY(tile);
+	local max_y = min_y + height - 1;
+
+	local max_height = 0;
+	local min_height = 15;
+	local avg_height = 0;
+
+	for (local x = min_x; x <= max_x; x++) {
+		for (local y = min_y; y <= max_y; y++) {
+			local t = AIMap.GetTileIndex(x, y);
+			if (!AITile.IsBuildable(t) && !AITile.DemolishTile(t)) return false;
+			local h = AITile.GetMaxHeight(t);
+			if (h > max_height) max_height = h;
+			if (h < min_height) min_height = h;
+			avg_height += h;
+		}
+	}
+
+	if (max_height - min_height > 2) return false;
+
+	avg_height = avg_height / (width * height);
+
+	local terraform_limit = 20;
+	local terraform_done = false;
+
+	while (!terraform_done && terraform_limit > 0) {
+		terraform_done = true;
+		terraform_limit--;
+
+		for (local x = min_x; x <= max_x; x++) {
+			for (local y = min_y; y <= max_y; y++) {
+				local t = AIMap.GetTileIndex(x, y);
+				local h = AITile.GetMaxHeight(t);
+
+				if (h == avg_height && AITile.GetSlope(t) == AITile.SLOPE_FLAT) continue;
+
+				if (h > avg_height) {
+					if (!AITile.LowerTile(t, AITile.GetSlope(t) != AITile.SLOPE_FLAT ? AITile.GetSlope(t) : AITile.SLOPE_ELEVATED)) return false;
+					terraform_done = false;
+				} else if (h < avg_height) {
+					if (!AITile.RaiseTile(t, AITile.GetComplementSlope(AITile.GetSlope(t)))) return false;
+					terraform_done = false;
+				} else {
+					if (AITile.GetSlope(t) != AITile.SLOPE_FLAT) {
+						if (!AITile.RaiseTile(t, AITile.GetComplementSlope(AITile.GetSlope(t)))) return false;
+						terraform_done = false;
+					}
+				}
+			}
+		}
+	}
+
+	return terraform_done;
 }
 
 function TrainManager::_InitializeUnbuildRoutes()
