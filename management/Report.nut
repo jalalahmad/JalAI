@@ -32,6 +32,7 @@ class Report
 	
 	upgradeToRailType = 0;             // The rail type to upgrade an existing connection to (or null if not).
 	loadingTime = 0;                   // The time it takes to load a vehicle.
+	subtractedUtility = 0;             // Utility subtracted to represent net gain.
 
 	//world = 0;
 
@@ -277,7 +278,7 @@ class Report
 		local vehicleType = AIEngine.GetVehicleType(transportEngineID);
 		if (vehicleType == AIVehicle.VT_INVALID)
 			return 0;
-		return NettoIncomePerMonth();
+		return NettoIncomePerMonth() - subtractedUtility;
 	}
 
 	function GetIncomePerVehicle(distance) {
