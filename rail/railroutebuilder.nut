@@ -41,7 +41,9 @@ class RailRouteBuilder
 
 function RailRouteBuilder::DetectPlatformLength(station)
 {
-	local tile = AIStation.GetLocation(station);
+	local list = AITileList_StationType(station, AIStation.STATION_TRAIN);
+	if (list.IsEmpty()) return 0;
+	local tile = list.Begin();
 	local length = 0;
 	if (AIRail.GetRailTracks(tile) == AIRail.RAILTRACK_NW_SE) {
 		while (AIStation.GetStationID(tile + AIMap.GetTileIndex(0, -1)) == station && AIRail.GetRailTracks(tile + AIMap.GetTileIndex(0, -1)) == AIRail.RAILTRACK_NW_SE) {
@@ -51,7 +53,7 @@ function RailRouteBuilder::DetectPlatformLength(station)
 			length++;
 			tile += AIMap.GetTileIndex(0, 1);
 		}
-	} else {
+	} else if (AIRail.GetRailTracks(tile) == AIRail.RAILTRACK_NE_SW) {
 		while (AIStation.GetStationID(tile + AIMap.GetTileIndex(-1, 0)) == station && AIRail.GetRailTracks(tile + AIMap.GetTileIndex(-1, 0)) == AIRail.RAILTRACK_NE_SW) {
 			tile += AIMap.GetTileIndex(-1, 0);
 		}
