@@ -426,25 +426,45 @@ function TruckLineManager::_GetStationNearTown(town, dir_tile, cargo)
 	tile_list.KeepAboveValue(0);
 	tile_list.Valuate(AIBase.RandItem);
 	tile_list.Sort(AIAbstractList.SORT_BY_VALUE, AIAbstractList.SORT_ASCENDING);
-	foreach (tile, dummy in tile_list) {
-		local can_build = true;
-		foreach (offset in diagoffsets) {
-			if (AITile.IsStationTile(tile + offset)) can_build = false;
-		}
-		if (!can_build) continue;
-		foreach (offset in this._GetSortedOffsets(tile, dir_tile)) {
-			{
-				/* Test if we can build a station and the road to it. */
-				local test = AITestMode();
-				if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) {
-					{
-						local exec = AIExecMode();
-						if (AITile.GetMaxHeight(tile) == 1 || !AITile.LowerTile(tile, AITile.GetSlope(tile))) continue;
-					}
-					if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
-				}
-				if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+	for (local allow_clear = 0; allow_clear <= 1; allow_clear++) {
+		foreach (tile, dummy in tile_list) {
+			local can_build = true;
+			foreach (offset in diagoffsets) {
+				if (AITile.IsStationTile(tile + offset)) can_build = false;
 			}
+			if (!can_build) continue;
+			foreach (offset in this._GetSortedOffsets(tile, dir_tile)) {
+				if (allow_clear == 1) {
+					/* Don't destroy properties owned by a company. */
+					local owner1 = AITile.GetOwner(tile);
+					local owner2 = AITile.GetOwner(tile + offset);
+					if (owner1 != AICompany.COMPANY_INACTIVE_CLIENT && owner1 != AICompany.COMPANY_NONE) continue;
+					if (owner2 != AICompany.COMPANY_INACTIVE_CLIENT && owner2 != AICompany.COMPANY_NONE) continue;
+
+					local test = AITestMode();
+					local can_clear = true;
+					if (!AITile.IsBuildable(tile) && !AITile.DemolishTile(tile)) can_clear = false;
+					if (!AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset) && !AITile.DemolishTile(tile + offset)) can_clear = false;
+
+					if (!can_clear) continue;
+
+					local exec = AIExecMode();
+					if (!AITile.IsBuildable(tile)) AITile.DemolishTile(tile);
+					if (!AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset)) AITile.DemolishTile(tile + offset);
+				}
+
+				{
+					/* Test if we can build a station and the road to it. */
+					local test = AITestMode();
+					if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) {
+						{
+							local exec = AIExecMode();
+							if (AITile.GetMaxHeight(tile) == 1 || !AITile.LowerTile(tile, AITile.GetSlope(tile))) continue;
+						}
+						if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
+					}
+					if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+				}
 			if (AITile.GetMaxHeight(tile + offset) > AITile.GetMaxHeight(tile)) {
 				if (!AITile.LowerTile(tile + offset, AITile.GetSlope(tile + offset))) continue;
 			} else if (AITile.GetMaxHeight(tile + offset) < AITile.GetMaxHeight(tile) || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) {
@@ -454,16 +474,16 @@ function TruckLineManager::_GetStationNearTown(town, dir_tile, cargo)
 				}
 				if (AITile.GetMaxHeight(tile + offset) != target_h || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) continue;
 			}
-			/* Build both the road and the station. If building fails, try another location.*/
-			if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
-			if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
-			local station_id = AIStation.GetStationID(tile);
-			local manager = StationManager(station_id);
-			manager.SetCargoDrop(true);
-			return manager;
+				/* Build both the road and the station. If building fails, try another location.*/
+				if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+				if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
+				local station_id = AIStation.GetStationID(tile);
+				local manager = StationManager(station_id);
+				manager.SetCargoDrop(true);
+				return manager;
+			}
 		}
 	}
-	/* @TODO: if building a stations failed, try if we can clear some tiles for the station. */
 	return null;
 }
 
@@ -506,27 +526,47 @@ function TruckLineManager::_GetStationNearIndustry(ind, dir_tile, producing, car
 	}
 	tile_list.Valuate(AIBase.RandItem);
 	tile_list.Sort(AIAbstractList.SORT_BY_VALUE, producing ? AIAbstractList.SORT_ASCENDING : AIAbstractList.SORT_DESCENDING);
-	foreach (tile, dummy in tile_list) {
-		local can_build = true;
-		foreach (offset in diagoffsets) {
-			if (AITile.IsStationTile(tile + offset)) can_build = false;
-		}
-		if (!can_build) continue;
-		foreach (offset in this._GetSortedOffsets(tile, dir_tile)) {
-			/* This is mainly so we don't build a station with the entrance on rails. */
-			if (!AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset)) continue;
-			{
-				/* Test if we can build a station and the road to it. */
-				local test = AITestMode();
-				if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) {
-					{
-						local exec = AIExecMode();
-						if (AITile.GetMaxHeight(tile) == 1 || !AITile.LowerTile(tile, AITile.GetSlope(tile))) continue;
-					}
-					if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
-				}
-				if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+	for (local allow_clear = 0; allow_clear <= 1; allow_clear++) {
+		foreach (tile, dummy in tile_list) {
+			local can_build = true;
+			foreach (offset in diagoffsets) {
+				if (AITile.IsStationTile(tile + offset)) can_build = false;
 			}
+			if (!can_build) continue;
+			foreach (offset in this._GetSortedOffsets(tile, dir_tile)) {
+				/* This is mainly so we don't build a station with the entrance on rails. */
+				if (allow_clear == 0 && !AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset)) continue;
+				if (allow_clear == 1) {
+					/* Don't destroy properties owned by a company. */
+					local owner1 = AITile.GetOwner(tile);
+					local owner2 = AITile.GetOwner(tile + offset);
+					if (owner1 != AICompany.COMPANY_INACTIVE_CLIENT && owner1 != AICompany.COMPANY_NONE) continue;
+					if (owner2 != AICompany.COMPANY_INACTIVE_CLIENT && owner2 != AICompany.COMPANY_NONE) continue;
+
+					local test = AITestMode();
+					local can_clear = true;
+					if (!AITile.IsBuildable(tile) && !AITile.DemolishTile(tile)) can_clear = false;
+					if (!AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset) && !AITile.DemolishTile(tile + offset)) can_clear = false;
+
+					if (!can_clear) continue;
+
+					local exec = AIExecMode();
+					if (!AITile.IsBuildable(tile)) AITile.DemolishTile(tile);
+					if (!AITile.IsBuildable(tile + offset) && !AIRoad.IsRoadTile(tile + offset)) AITile.DemolishTile(tile + offset);
+				}
+
+				{
+					/* Test if we can build a station and the road to it. */
+					local test = AITestMode();
+					if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) {
+						{
+							local exec = AIExecMode();
+							if (AITile.GetMaxHeight(tile) == 1 || !AITile.LowerTile(tile, AITile.GetSlope(tile))) continue;
+						}
+						if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
+					}
+					if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+				}
 			if (AITile.GetMaxHeight(tile + offset) > AITile.GetMaxHeight(tile)) {
 				if (!AITile.LowerTile(tile + offset, AITile.GetSlope(tile + offset))) continue;
 			} else if (AITile.GetMaxHeight(tile + offset) < AITile.GetMaxHeight(tile) || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) {
@@ -537,24 +577,24 @@ function TruckLineManager::_GetStationNearIndustry(ind, dir_tile, producing, car
 				if (AITile.GetMaxHeight(tile + offset) != target_h || AITile.GetSlope(tile + offset) != AITile.SLOPE_FLAT) continue;
 			}
 			if (AITile.GetSlope(tile) != AITile.SLOPE_FLAT) AITile.RaiseTile(tile, AITile.GetComplementSlope(AITile.GetSlope(tile)));
-			/* Build both the road and the station. If building fails, try another location.*/
-			if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
-			if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
-			local station_id = AIStation.GetStationID(tile);
-			local manager = StationManager(station_id);
-			manager.SetCargoDrop(!producing);
-			if (producing) {
-				if (!this._ind_to_pickup_stations.rawin(ind)) {
-					this._ind_to_pickup_stations.rawset(ind, [[manager, false]]);
-				} else {
-					this._ind_to_pickup_stations.rawget(ind).push([manager, false]);
+				/* Build both the road and the station. If building fails, try another location.*/
+				if (!AIRoad.BuildRoad(tile, tile + offset)) continue;
+				if (!AIRoad.BuildRoadStation(tile, tile + offset, AIRoad.ROADVEHTYPE_TRUCK, AIStation.STATION_NEW)) continue;
+				local station_id = AIStation.GetStationID(tile);
+				local manager = StationManager(station_id);
+				manager.SetCargoDrop(!producing);
+				if (producing) {
+					if (!this._ind_to_pickup_stations.rawin(ind)) {
+						this._ind_to_pickup_stations.rawset(ind, [[manager, false]]);
+					} else {
+						this._ind_to_pickup_stations.rawget(ind).push([manager, false]);
+					}
 				}
+				else this._ind_to_drop_station.rawset(ind, manager);
+				return manager;
 			}
-			else this._ind_to_drop_station.rawset(ind, manager);
-			return manager;
 		}
 	}
-	/* @TODO: if building a stations failed, try if we can clear some tiles for the station. */
 	return null;
 }
 
