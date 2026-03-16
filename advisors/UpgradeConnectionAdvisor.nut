@@ -19,7 +19,6 @@ class UpgradeConnectionAdvisor extends Advisor/*, ConnectionListener */ {
 	}
 }
 
-// TODO: Subtract the utility of the removed connection.
 function UpgradeConnectionAdvisor::Update(loopCounter) {
 	
 	reports = [];
@@ -52,12 +51,15 @@ function UpgradeConnectionAdvisor::Update(loopCounter) {
 			
 			local report = Report(world, startNode, endNode, connection.cargoID, world.cargoTransportEngineIds[connection.vehicleTypes][connection.cargoID], 0);
 			
+			if (originalReport != null)
+				report.subtractedUtility = originalReport.Utility();
+
 			// Check if the new report is better than the origional.
 			if (bestReport == null || report.Utility() > bestReport.Utility())
 				bestReport = report;
 		}
 		
-		if (bestReport == null || bestReport.Utility() < originalReport.Utility())
+		if (bestReport == null || bestReport.Utility() <= 0)
 			continue;
 			
 		local existingConnection = bestReport.fromConnectionNode.GetConnection(bestReport.toConnectionNode, bestReport.cargoID);
